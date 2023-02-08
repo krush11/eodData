@@ -46,9 +46,7 @@ func HandleRequest() {
 		i++
 		var symbol string
 		rows.Scan(&symbol)
-		if symbol < "KAYNES" {
-			continue
-		} 
+
 		startTime := time.Now()
 		data, err := FetchHistoricalData(symbol, dateYesterday.Format("02-01-2006"), dateToday.Format("02-01-2006"), "EQ")
 		if err != nil {
