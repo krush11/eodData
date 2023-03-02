@@ -11,6 +11,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// function to add two numbers
+
 var db1, db2 *pgx.Conn
 
 func ConnectPSQL() {
@@ -32,12 +34,11 @@ func ConnectPSQL() {
 
 func HandleRequest() {
 	dateToday := time.Now()
-	dateYesterday := time.Now().AddDate(0, 0, -1)
 	log.Println("Starting updating EOD data for", dateToday.Format("02-01-2006"))
 	godotenv.Load()
 	ConnectPSQL()
 
-	rows, _ := db1.Query(context.Background(), "SELECT symbol FROM equity.securities_price_history ORDER BY symbol ASC")
+	rows, _ := db1.Query(context.Background(), "SELECT symbol FROM equity.securities_metadata ORDER BY symbol ASC")
 
 	i := 0
 	j := 0
@@ -46,9 +47,11 @@ func HandleRequest() {
 		i++
 		var symbol string
 		rows.Scan(&symbol)
+		log.Println("Symbol:", i, symbol)
 
 		startTime := time.Now()
-		data, err := FetchHistoricalData(symbol, dateYesterday.Format("02-01-2006"), dateToday.Format("02-01-2006"), "EQ")
+		data, err := FetchHistoricalData(symbol, dateToday.Format("02-01-2006"), dateToday.Format("02-01-2006"), "EQ")
+
 		if err != nil {
 			log.Println("Error fetching data for", symbol, " on ", dateToday.Format("02-01-2006"))
 			log.Panicln(err)
@@ -66,6 +69,7 @@ func HandleRequest() {
 			j++
 			continue
 		}
+		deliveryData, _ := fetchDeliveryData(symbol)
 
 		var SecuritiesPriceHistory SecuritiesPriceHistoryModel
 		SecuritiesPriceHistory.Symbol = symbol
@@ -83,13 +87,15 @@ func HandleRequest() {
 		DayPrice.High52W = data.Data[0].High52W
 		DayPrice.Low52W = data.Data[0].Low52W
 		DayPrice.TotalTrades = data.Data[0].TotalTrades
+		DayPrice.DeliveryQuantity = deliveryData.SecurityWiseDP.DeliveryQuantity
+		DayPrice.DeliveryPercentage = deliveryData.SecurityWiseDP.DeliveryToTradedQuantity
 		SecuritiesPriceHistory.History = append(SecuritiesPriceHistory.History, DayPrice)
 
 		db2.Exec(context.Background(), `UPDATE equity.securities_price_history
 		SET history = $1::equity.day_price[] || history WHERE symbol = $2`,
 			SecuritiesPriceHistory.History, SecuritiesPriceHistory.Symbol)
 
-		log.Println("Updated EOD data for", i, symbol, "in", time.Since(startTime).Seconds(), " seconds")
+		log.Println("Updated EOD data for", i, symbol, "in", time.Since(startTime).Seconds(), "seconds")
 	}
 
 	log.Println("Completed updating EOD data for", dateToday.Format("02-01-2006"))

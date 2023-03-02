@@ -26,10 +26,11 @@ func (l DayPriceModelList) Value() (driver.Value, error) {
 		// not the case then you simply provide v.Date in such a
 		// format which the composite's field understand, e.g.,
 		// v.Date.Format("<layout that the pg composite understands>")
-		x := fmt.Sprintf(`"(%v,%v,%v,%v,%v,%v,%v,%v,%f,%v,%v,%v)",`,
+		x := fmt.Sprintf(`"(%v,%v,%v,%v,%v,%v,%v,%v,%f,%v,%v,%v,%v,%v)",`,
 			v.Date.Format("2006-01-02"), v.High, v.Low, v.Open, v.Close,
 			v.LTP, v.PrevClose, v.TotalTradedQuantity,
-			v.TotalTradedValue, v.High52W, v.Low52W, v.TotalTrades)
+			v.TotalTradedValue, v.High52W, v.Low52W, v.TotalTrades,
+			v.DeliveryQuantity, v.DeliveryPercentage)
 		out = append(out, x...)
 	}
 
@@ -50,6 +51,8 @@ type DayPriceModel struct {
 	High52W             float32   `json:"high_52w"`
 	Low52W              float32   `json:"low_52w"`
 	TotalTrades         int32     `json:"total_trades"`
+	DeliveryQuantity    int32     `json:"delivery_quantity"`
+	DeliveryPercentage  float32   `json:"delivery_percentage"`
 }
 
 type SecuritiesPriceHistoryModel struct {
