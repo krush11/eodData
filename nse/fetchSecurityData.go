@@ -1,4 +1,4 @@
-package main
+package nse
 
 import (
 	"compress/gzip"
@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"time"
+	"updateEODData/utils"
 )
 
 type DailyDataType struct {
@@ -41,7 +42,7 @@ type SecurityDataType struct {
 }
 
 func FetchHistoricalData(symbol string, from string, to string, series string) (SecurityDataType, error) {
-	req := ReqConfig()
+	req := utils.ReqConfig()
 
 	query := req.URL.Query()
 	query.Add("symbol", symbol)

@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"time"
+	"updateEODData/models"
+	"updateEODData/nse"
 
 	// "github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5"
@@ -50,7 +52,7 @@ func HandleRequest() {
 		log.Println("Symbol:", i, symbol)
 
 		startTime := time.Now()
-		data, err := FetchHistoricalData(symbol, dateToday.Format("02-01-2006"), dateToday.Format("02-01-2006"), "EQ")
+		data, err := nse.FetchHistoricalData(symbol, dateToday.Format("02-01-2006"), dateToday.Format("02-01-2006"), "EQ")
 
 		if err != nil {
 			log.Println("Error fetching data for", symbol, " on ", dateToday.Format("02-01-2006"))
@@ -69,12 +71,12 @@ func HandleRequest() {
 			j++
 			continue
 		}
-		deliveryData, _ := fetchDeliveryData(symbol)
+		deliveryData, _ := nse.FetchDeliveryData(symbol)
 
-		var SecuritiesPriceHistory SecuritiesPriceHistoryModel
+		var SecuritiesPriceHistory models.SecuritiesPriceHistoryModel
 		SecuritiesPriceHistory.Symbol = symbol
 
-		var DayPrice DayPriceModel
+		var DayPrice models.DayPriceModel
 		DayPrice.Date, _ = time.Parse("02-Jan-2006", data.Data[0].MTimestamp)
 		DayPrice.High = data.Data[0].High
 		DayPrice.Low = data.Data[0].Low
@@ -91,6 +93,7 @@ func HandleRequest() {
 		DayPrice.DeliveryPercentage = deliveryData.SecurityWiseDP.DeliveryToTradedQuantity
 		SecuritiesPriceHistory.History = append(SecuritiesPriceHistory.History, DayPrice)
 
+		log.Println(SecuritiesPriceHistory.History)
 		db2.Exec(context.Background(), `UPDATE equity.securities_price_history
 		SET history = $1::equity.day_price[] || history WHERE symbol = $2`,
 			SecuritiesPriceHistory.History, SecuritiesPriceHistory.Symbol)

@@ -1,4 +1,4 @@
-package main
+package nse
 
 import (
 	"compress/gzip"
@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"updateEODData/utils"
 )
 
 type DeliveryDataType struct {
@@ -24,8 +25,8 @@ type DeliveryDataType struct {
 	} `json:"securityWiseDP"`
 }
 
-func fetchDeliveryData(symbol string) (DeliveryDataType, error) {
-	req := ReqConfig()
+func FetchDeliveryData(symbol string) (DeliveryDataType, error) {
+	req := utils.ReqConfig()
 
 	query := req.URL.Query()
 	query.Add("symbol", symbol)
