@@ -93,7 +93,6 @@ func HandleRequest() {
 		DayPrice.DeliveryPercentage = deliveryData.SecurityWiseDP.DeliveryToTradedQuantity
 		SecuritiesPriceHistory.History = append(SecuritiesPriceHistory.History, DayPrice)
 
-		log.Println(SecuritiesPriceHistory.History)
 		db2.Exec(context.Background(), `UPDATE equity.securities_price_history
 		SET history = $1::equity.day_price[] || history WHERE symbol = $2`,
 			SecuritiesPriceHistory.History, SecuritiesPriceHistory.Symbol)

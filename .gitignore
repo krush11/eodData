@@ -1,3 +1,4 @@
 main
 *.zip
 .env
+updateEODData
