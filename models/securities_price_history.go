@@ -56,6 +56,6 @@ type DayPriceModel struct {
 }
 
 type SecuritiesPriceHistoryModel struct {
-	Symbol  string            `json:"symbol"`
-	History DayPriceModelList `json:"history"`
+	Symbol  string          `json:"symbol"`
+	History []DayPriceModel `json:"history"`
 }

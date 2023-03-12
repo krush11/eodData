@@ -8,25 +8,20 @@ import (
 	"updateEODData/models"
 	"updateEODData/nse"
 
-	// "github.com/aws/aws-lambda-go/lambda"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
 
-// function to add two numbers
-
-var db1, db2 *pgx.Conn
+var pool *pgxpool.Pool
 
 func ConnectPSQL() {
 	var err error
-	db1, err = pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
-	db2, err = pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
+	config, err := pgxpool.ParseConfig(os.Getenv("PSQL_URL"))
+	pool, err = pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		log.Println("Error connecting to database: ", err)
 	}
 
-	err = db1.Ping(context.Background())
-	err = db2.Ping(context.Background())
 	if err != nil {
 		log.Println("Error pinging database: ", err)
 	} else {
@@ -34,13 +29,37 @@ func ConnectPSQL() {
 	}
 }
 
+func RegisterDataTypes(ctx context.Context) error {
+	dataTypeNames := []string{
+		"equity.day_price",
+		"equity.day_price[]",
+	}
+	conn, _ := pool.Acquire(ctx)
+	defer conn.Release()
+
+	for _, typeName := range dataTypeNames {
+		dataType, err := conn.Conn().LoadType(ctx, typeName)
+		if err != nil {
+			return err
+		}
+		conn.Conn().TypeMap().RegisterType(dataType)
+	}
+
+	return nil
+}
+
 func HandleRequest() {
-	dateToday := time.Now()
+	dateToday := time.Now().AddDate(0, 0, -2)
 	log.Println("Starting updating EOD data for", dateToday.Format("02-01-2006"))
 	godotenv.Load()
 	ConnectPSQL()
 
-	rows, _ := db1.Query(context.Background(), "SELECT symbol FROM equity.securities_metadata ORDER BY symbol ASC")
+	err := RegisterDataTypes(context.Background())
+	if err != nil {
+		log.Println("Error registering data types: ", err)
+	}
+
+	rows, _ := pool.Query(context.Background(), "SELECT symbol FROM equity.securities_metadata ORDER BY symbol ASC")
 
 	i := 0
 	j := 0
@@ -92,12 +111,37 @@ func HandleRequest() {
 		DayPrice.DeliveryQuantity = deliveryData.SecurityWiseDP.DeliveryQuantity
 		DayPrice.DeliveryPercentage = deliveryData.SecurityWiseDP.DeliveryToTradedQuantity
 		SecuritiesPriceHistory.History = append(SecuritiesPriceHistory.History, DayPrice)
+		log.Println(SecuritiesPriceHistory.History[0])
 
-		db2.Exec(context.Background(), `UPDATE equity.securities_price_history
+		_, err = pool.Exec(context.Background(), `UPDATE equity.securities_price_history
 		SET history = $1::equity.day_price[] || history WHERE symbol = $2`,
-			SecuritiesPriceHistory.History, SecuritiesPriceHistory.Symbol)
+			SecuritiesPriceHistory.History, "0")
+		if err != nil {
+			log.Println(err)
+		}
+
+		sphm := &models.SecuritiesPriceHistoryModel{}
+		err = pool.QueryRow(context.Background(),
+			`SELECT (symbol, history) FROM equity.securities_price_history WHERE symbol=$1`,
+			"PAYTM").Scan(sphm)
+		if err != nil {
+			log.Println(err)
+		}
+
+		history := []models.DayPriceModel{
+			{time.Now().AddDate(0, 0, -2), 4, 1, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+			{time.Now().AddDate(0, 0, -1), 10, 5, 6, 7, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		}
+
+		insertStmt := `INSERT INTO equity.securities_price_history VALUES ($1, $2)`
+		_, err = pool.Exec(context.Background(), insertStmt, "01", history)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		log.Println("Updated EOD data for", i, symbol, "in", time.Since(startTime).Seconds(), "seconds")
+
+		return
 	}
 
 	log.Println("Completed updating EOD data for", dateToday.Format("02-01-2006"))
@@ -105,6 +149,5 @@ func HandleRequest() {
 }
 
 func main() {
-	// lambda.Start(HandleRequest)
 	HandleRequest()
 }
