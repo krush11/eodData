@@ -2,3 +2,4 @@ main
 *.zip
 .env
 updateEODData
+vendor
