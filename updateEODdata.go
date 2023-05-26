@@ -15,7 +15,7 @@ import (
 )
 
 var pool *pgxpool.Pool
-var dateToday = time.Now().AddDate(0, 0, -3)
+var dateToday = time.Now()
 var erroneousSymbols []string
 var wg sync.WaitGroup
 var errorCount int16 = 0
@@ -129,8 +129,7 @@ func HandleRequest() {
 
 		// wg.Add(1)
 		// go updateSymbol(symbol)
-		// updateSymbol(symbol)
-		pool.Exec(context.Background(), "INSERT INTO equity.securities_price_history (symbol) VALUES($1)", symbol)
+		updateSymbol(symbol)
 	}
 	// wg.Wait()
 
